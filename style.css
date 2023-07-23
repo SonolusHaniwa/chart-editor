@@ -1,0 +1,146 @@
+@font-face {
+    font-family: "Font";
+    src: url("assets/font.ttf");
+}  
+
+body {
+    margin: 0;
+    color: gray;
+    font-family: Font;
+    font-size: 13px;
+}
+
+.flex {
+    display: flex;
+    display: -webkit-flex;
+}
+
+hr {
+    width: 100%;
+    border-width: 0px 0px 0px 0px;
+    height: 1px;
+    background-color: rgb(96, 96, 96);
+}
+
+nav {
+    width: 100%;
+    height: 35px;
+    background-color: rgb(32, 32, 32);
+}
+
+nav > img {
+    width: 25px;
+    height: 25px;
+    margin: 5px;
+}
+
+nav > toggle {
+    min-width: 30px;
+    height: 25px;
+    padding: 5px 10px;
+    line-height: 25px;
+    cursor: pointer;
+    border-radius: 5px;
+    text-align: center;
+    transition: background-color 0.3s;
+}
+
+nav > toggleTitle {
+    flex-grow: 100000;
+    -webkit-flex-grow: 100000;
+    text-align: center;
+    line-height: 25px;
+    padding: 5px 10px;
+}
+
+toggle:hover {
+    background-color: rgb(64, 64, 64);
+}
+
+toggleContent {
+    position: fixed;
+    display: none;
+    flex-direction: column;
+    -webkit-flex-direction: column;
+    border-color: rgb(96, 96, 96);
+    border: 1px solid;
+    background-color: rgb(64, 64, 64);
+    opacity: 0;
+    padding: 2px 0px;
+    z-index: 10000;
+}
+
+toggleItem {
+    min-width: 200px;
+    height: 20px;
+    padding: 5px 20px 5px 20px;
+    line-height: 20px;
+    cursor: pointer;
+    display: flex;
+    display: -webkit-flex;
+    justify-content: space-between;
+}
+
+toggleItem:hover {
+    background-color: rgb(26, 120, 40);
+    color: rgb(45, 242, 75);
+}
+
+toggleText {
+    color: white;
+    text-align: left;
+}
+
+toggleShoutcut {
+    text-align: right;
+}
+
+fileSystem {
+    position: fixed;
+    flex-direction: column;
+    -webkit-flex-direction: column;
+    width: 15%;
+    height: 100vh;
+    padding-top: 10px;
+    background-color: rgb(96, 96, 96, 0.6);
+}
+
+fileSystemTitle {
+    width: calc(100% - 40px);
+    height: 20px;
+    padding: 5px 20px 5px 20px;
+    line-height: 20px;
+    color: white;
+    font-weight: 200;
+}
+
+fileSystemItem {
+    width: calc(100% - 40px);
+    height: 20px;
+    padding: 5px 20px 5px 20px;
+    line-height: 20px;
+    color: white;
+    cursor: pointer;
+    font-weight: 200;
+}
+
+fileSystemItem:hover {
+    background-color: rgb(150, 150, 150, 0.6);
+}
+
+fileSystemItemIcon {
+    margin-right: 5px;
+    line-height: 25px;
+}
+
+page {
+    color: white;
+}
+
+container {
+    position: fixed;
+    left: 15%;
+    width: 85%;
+    height: 100vh;
+    background-color: rgb(64, 64, 64, 0.6);
+}
