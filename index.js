@@ -193,34 +193,89 @@ addLoadEvent(function(){
 
 // Page Features
 
-function fileSystem_info() {
-    var div = document.createElement("page");
-    div.id = "fileSystem.info"; div.innerHTML = "fileSystem.info";
-    document.getElementById("container").appendChild(div);
+var searchConfig = new Object();
+var enableResetClass = "flex select-none space-x-2 p-2 transition-colors sm:space-x-3 sm:p-3 cursor-pointer bg-sonolus-ui-button-normal hover:bg-sonolus-ui-button-highlighted active:bg-sonolus-ui-button-pressed";
+var disableResetClass = "flex select-none space-x-2 p-2 transition-colors sm:space-x-3 sm:p-3 pointer-events-none bg-sonolus-ui-button-disabled text-sonolus-ui-text-disabled";
+
+async function getComponent(path) {
+    var response = await fetch(path);
+    var text = await response.text();
+    return text;
 }
 
-function fileSystem_chart() {
+function htmlToNode(html) {
+    var template = document.createElement('template');
+    template.innerHTML = html;
+    return template.content.firstChild;
+}
+
+function loadJS(path) {
+    var oHead = document.getElementsByTagName('head')[0]; // 在head标签中创建创建script
+    var oScript = document.createElement("script");
+    oScript.type = "text/javascript";
+    oScript.src = path;
+    oHead.appendChild(oScript);
+}
+
+async function readBinaryFile(FileObject) {
+    var reader = new FileReader();
+    var result; var finish = false;
+    reader.readAsArrayBuffer(FileObject);
+    reader.onload = function(e) {
+        finish = true;
+        result = this.result;
+    }
+    while (!finish) await sleep(10);
+    return result;
+}
+
+async function uploader(data) {
+    var blob = new Blob([data], {type: "application/octet-stream"});
+    return URL.createObjectURL(blob);
+}
+
+async function getBlobFile(url) {
+    var response = await fetch(url);
+    var blob = await response.blob();
+    return blob;
+}
+
+async function fileSystem_info() {
+    var div = document.createElement("page");
+    div.id = "fileSystem.info"; div.appendChild(htmlToNode(await getComponent("/components/info.html")));
+    div.style.width = "100%";
+    document.getElementById("container").appendChild(div);
+    loadJS("/components/info.js");
+}
+
+async function fileSystem_chart() {
     var div = document.createElement("page");
     div.id = "fileSystem.chart"; div.innerHTML = "fileSystem.chart";
     document.getElementById("container").appendChild(div);
 }
 
-function fileSystem_bgm() {
+async function fileSystem_bgm() {
     var div = document.createElement("page");
-    div.id = "fileSystem.bgm"; div.innerHTML = "fileSystem.bgm";
+    div.id = "fileSystem.bgm"; div.appendChild(htmlToNode(await getComponent("/components/bgm.html")));
+    div.style.width = "100%";
     document.getElementById("container").appendChild(div);
+    loadJS("/components/bgm.js");
 }
 
-function fileSystem_preview() {
+async function fileSystem_preview() {
     var div = document.createElement("page");
-    div.id = "fileSystem.preview"; div.innerHTML = "fileSystem.preview";
+    div.id = "fileSystem.preview"; div.appendChild(htmlToNode(await getComponent("/components/preview.html")));
+    div.style.width = "100%";
     document.getElementById("container").appendChild(div);
+    loadJS("/components/preview.js");
 }
 
-function fileSystem_thumbnail() {
+async function fileSystem_thumbnail() {
     var div = document.createElement("page");
-    div.id = "fileSystem.thumbnail"; div.innerHTML = "fileSystem.thumbnail";
+    div.id = "fileSystem.thumbnail"; div.appendChild(htmlToNode(await getComponent("/components/cover.html")));
+    div.style.width = "100%";
     document.getElementById("container").appendChild(div);
+    loadJS("/components/cover.js");
 }
 
 // FileSystem Module
@@ -274,7 +329,7 @@ function clearPageState() {
     }
 }
 
-function createFileSystemItem(item) {
+async function createFileSystemItem(item) {
     var fileSystemItem = document.createElement("fileSystemItem");
     var fileSystemItemIcon = document.createElement("fileSystemItemIcon");
     var fileSystemItemText = document.createElement("fileSystemItemText");
@@ -289,11 +344,11 @@ function createFileSystemItem(item) {
     }; 
     fileSystemItem.classList.add("flex");
     document.getElementById("fileRoot").appendChild(fileSystemItem);
-    item.initialize();
+    await item.initialize();
 }
 
-addLoadEvent(function(){
-    for (var i = 0; i < fileSystemConfig.length; i++) createFileSystemItem(fileSystemConfig[i]);
+addLoadEvent(async function(){
+    for (var i = 0; i < fileSystemConfig.length; i++) await createFileSystemItem(fileSystemConfig[i]);
     clearPageState();
 });
 
