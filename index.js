@@ -52,6 +52,14 @@ function editorRedo() {
     alert("editorRedo");
 }
 
+function previewJump() {
+	alert("previewJump");
+}
+
+function previewPlay() {
+	alert("previewPlay");
+}
+
 // Toggle Modules
 
 const toggleConfig = [
@@ -118,10 +126,37 @@ const toggleConfig = [
                         shift: false,
                         key: 89
                     }
-                }
+				}
             ]
         ]
-    }
+	}, {
+		title: "预览",
+		subtoggle: [
+			[
+				{
+					text: "播放 / 暂停",
+					shortcutText: "Ctrl + Space",
+					callback: previewPlay,
+					shortcut: {
+						ctrl: true,
+						alt: false,
+						shift: false,
+						key: 32
+					}
+				}, {
+					text: "跳转",
+					shortcutText: "Ctrl + J",
+					callback: previewJump,
+					shortcut: {
+						ctrl: true,
+						alt: false,
+						shift: false,
+						key: 74
+					}
+				}
+			]
+		]
+	}
 ];
 
 function clearToggleState() {
@@ -246,12 +281,21 @@ async function fileSystem_info() {
     div.style.width = "100%";
     document.getElementById("container").appendChild(div);
     loadJS("/components/info.js");
+	div.style.opacity = 0;
+	div.style.display = "none";
 }
 
 async function fileSystem_chart() {
+	await loadConfig();
     var div = document.createElement("page");
-    div.id = "fileSystem.chart"; div.innerHTML = "fileSystem.chart";
+    div.id = "fileSystem.chart"; div.appendChild(drawSkin("Hanipure Normal Note", 0.5));
+	div.appendChild(drawSkin("Hanipure Normal Flick", 1.0));
+	div.appendChild(drawSkin("Hanipure Normal Hold", 0.3));
+	div.appendChild(drawSkin("Hanipure Hold Line", 1.0));
+	div.appendChild(drawSkin("Hanipure Judge Note", 1.0));
     document.getElementById("container").appendChild(div);
+	div.style.opacity = 0;
+	div.style.display = "none";
 }
 
 async function fileSystem_bgm() {
@@ -260,6 +304,8 @@ async function fileSystem_bgm() {
     div.style.width = "100%";
     document.getElementById("container").appendChild(div);
     loadJS("/components/bgm.js");
+	div.style.opacity = 0;
+	div.style.display = "none";
 }
 
 async function fileSystem_preview() {
@@ -268,6 +314,8 @@ async function fileSystem_preview() {
     div.style.width = "100%";
     document.getElementById("container").appendChild(div);
     loadJS("/components/preview.js");
+	div.style.opacity = 0;
+	div.style.display = "none";
 }
 
 async function fileSystem_thumbnail() {
@@ -276,6 +324,8 @@ async function fileSystem_thumbnail() {
     div.style.width = "100%";
     document.getElementById("container").appendChild(div);
     loadJS("/components/cover.js");
+	div.style.opacity = 0;
+	dis.style.display = "none";
 }
 
 // FileSystem Module
