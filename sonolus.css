@@ -250,13 +250,12 @@ pre {
 }
 
 fieldset {
-    margin: 0;
-    padding: 0
+    border-width: 1px!important;
 }
 
-legend {
+/* legend {
     padding: 0
-}
+} */
 
 ol,
 ul,

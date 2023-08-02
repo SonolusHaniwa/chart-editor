@@ -1,0 +1,49 @@
+<div class="flex" style="justify-content: center;">
+    <div id="tool" style="width: 30%;">
+        <fieldset style="margin-top: 30px">
+            <legend>工具箱</legend>
+            <div class="flex" style="align-items: center; margin-left: 10px;">
+                <input type="radio" id="tools-0" name="tools" value="0" checked/>
+                <label for="tools-0" id="tools-none-label" class="flex" style="flex-direction: row;">指针工具</label>
+            </div>
+            <div class="flex" style="align-items: center; margin-top: 5px; margin-left: 10px;">
+                <input type="radio" id="tools-1" name="tools" value="1"/>
+                <label for="tools-1" id="tools-tap-label" class="flex" style="flex-direction: row;"></label> 
+            </div>
+            <div class="flex" style="align-items: center; margin-top: 5px; margin-left: 10px;">
+                <input type="radio" id="tools-2" name="tools" value="2"/>
+                <label for="tools-2" id="tools-flick-label" class="flex" style="flex-direction: row;"></label> 
+            </div>
+            <div class="flex" style="align-items: center; margin-top: 5px; margin-left: 10px;">
+                <input type="radio" id="tools-3" name="tools" value="3"/>
+                <label for="tools-3" id="tools-hold-label" class="flex" style="flex-direction: row;"></label>
+            </div>
+            <div class="flex" style="align-items: center; margin-top: 5px; margin-left: 10px;">
+                <input type="radio" id="tools-4" name="tools" value="4"/>
+                <label for="tools-4" id="tools-holdflick-label" class="flex" style="flex-direction: row;"></label>
+            </div>
+            <div class="flex" style="align-items: center; margin-top: 7px; margin-left: 10px;">
+                <input type="radio" id="tools-5" name="tools" value="5"/>
+                <label for="tools-5" id="tools-erase-label" class="flex" style="flex-direction: row;">橡皮擦工具</label> 
+            </div>    
+        </fieldset>
+        <fieldset style="margin-top: 30px">
+            <legend>统计信息</legend>
+            <p>音符总数: <a id="statistic-total">0</a></p>
+            <p>Tap总数: <a id="statistic-tap">0</a></p>
+            <p>Flick总数: <a id="statistic-flick">0</a></p>
+            <p>Hold总数: <a id="statistic-hold">0</a></p>
+            <p>Hold-TapEnd总数: <a id="statistic-holdend">0</a></p>
+            <p>Hold-FlickEnd总数: <a id="statistic-holdflickend">0</a></p>
+        </fieldset>
+        <audio id="chart-controller" style="margin-top: 30px; width: 100%" controls controlslist="noplaybackrate">
+
+        </audio>
+    </div>
+    <div id="chart" style="width: 40%; margin-left: 50px; min-height: calc(100vh - 35px); overflow-y: auto; overflow-x: hidden;" class="flex">
+        <div id="timeline" style="width: 80px; position: relative;">
+        </div>
+        <div id="stage" style="width: calc(100% - 80px); position: relative;">
+        </div>
+    </div>
+</div>

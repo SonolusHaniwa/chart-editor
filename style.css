@@ -140,6 +140,7 @@ fileSystemItemIcon {
 page {
     color: white;
     overflow-y: auto;
+    padding-bottom: 35px;
 }
 
 container {
@@ -148,4 +149,20 @@ container {
     width: 85%;
     height: 100vh;
     background-color: rgb(0, 0, 0, 0.7);
+}
+
+input[type=radio] + label {
+    cursor: pointer;
+    padding: 0px 10px;
+    line-height: 25px;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+
+input[type=radio] {
+    cursor: pointer;
+}
+
+#chart::-webkit-scrollbar {
+    display: none
 }

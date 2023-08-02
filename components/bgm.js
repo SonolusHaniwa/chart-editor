@@ -16,6 +16,12 @@
         document.getElementById("search-bgm").value = await uploader(await readBinaryFile(this.files[0]));
         document.getElementById("search-preview-bgm").src = document.getElementById("search-bgm").value;
         document.getElementById("search-preview-bgm").load();
+        document.getElementById("chart-controller").src = document.getElementById("search-bgm").value;
+        document.getElementById("chart-controller").load();
+        document.getElementById("chart-controller").onloadedmetadata = async function() {
+            totalTime = document.getElementById("chart-controller").duration;
+            drawStage(); drawTimeline();
+        }; clearMap(); updateStatistics();
         searchConfig["bgm"] = document.getElementById("search-bgm").value;
         document.getElementById("search-reset-bgm").className = enableResetClass;
         document.getElementById("search-file-bgm").value = "";

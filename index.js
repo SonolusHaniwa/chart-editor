@@ -53,11 +53,15 @@ function editorRedo() {
 }
 
 function previewJump() {
-	alert("previewJump");
+    document.getElementById("chart-controller").pause();
+    var res = prompt("Time: ");
+    jump(res);
 }
 
 function previewPlay() {
-	alert("previewPlay");
+    if (document.getElementById("chart-controller").duration == 0 || isNaN(document.getElementById("chart-controller").duration)) return;
+    if (document.getElementById("chart-controller").paused) document.getElementById("chart-controller").play();
+    else document.getElementById("chart-controller").pause();
 }
 
 // Toggle Modules
@@ -135,13 +139,13 @@ const toggleConfig = [
 			[
 				{
 					text: "播放 / 暂停",
-					shortcutText: "Ctrl + Space",
+					shortcutText: "Ctrl + P",
 					callback: previewPlay,
 					shortcut: {
 						ctrl: true,
 						alt: false,
 						shift: false,
-						key: 32
+						key: 80
 					}
 				}, {
 					text: "跳转",
@@ -156,7 +160,74 @@ const toggleConfig = [
 				}
 			]
 		]
-	}
+	}, {
+        title: "工具",
+        subtoggle: [
+            [
+                {
+                    text: "指针工具",
+                    shortcutText: "Ctrl + 0",
+                    callback: function(){changeTool(0);},
+                    shortcut: {
+                        ctrl: true,
+                        alt: false,
+                        shift: false,
+                        key: 48
+                    }
+                }, {
+                    text: "Tap 音符",
+                    shortcutText: "Ctrl + 1",
+                    callback: function(){changeTool(1);},
+                    shortcut: {
+                        ctrl: true,
+                        alt: false,
+                        shift: false,
+                        key: 49
+                    }
+                }, {
+                    text: "Flick 音符",
+                    shortcutText: "Ctrl + 2",
+                    callback: function(){changeTool(2);},
+                    shortcut: {
+                        ctrl: true,
+                        alt: false,
+                        shift: false,
+                        key: 50
+                    }
+                }, {
+                    text: "Hold 音符",
+                    shortcutText: "Ctrl + 3",
+                    callback: function(){changeTool(3);},
+                    shortcut: {
+                        ctrl: true,
+                        alt: false,
+                        shift: false,
+                        key: 51
+                    }
+                }, {
+                    text: "Hold(Flick) 音符",
+                    shortcutText: "Ctrl + 4",
+                    callback: function(){changeTool(4);},
+                    shortcut: {
+                        ctrl: true,
+                        alt: false,
+                        shift: false,
+                        key: 52
+                    }
+                }, {
+                    text: "橡皮擦工具",
+                    shortcutText: "Ctrl + 5",
+                    callback: function(){changeTool(5);},
+                    shortcut: {
+                        ctrl: true,
+                        alt: false,
+                        shift: false,
+                        key: 53
+                    }
+                }
+            ]
+        ]
+    }
 ];
 
 function clearToggleState() {
@@ -201,11 +272,15 @@ function createToggle(toggle, id) {
                 toggleShortcut.innerHTML = item[j].shortcutText;
                 toggleItem.appendChild(toggleShortcut);
             } if (item[j].callback != undefined) {
-                toggleItem.onclick = item[j].callback;
+                const func = item[j].callback;
+                toggleItem.onclick = function() {
+                    clearToggleState();
+                    func();
+                };
                 if (item[j].shortcut != undefined) {
                     addShortcut(item[j].shortcut.ctrl, item[j].shortcut.alt, item[j].shortcut.shift, item[j].shortcut.key, item[j].callback);
                 }
-            }
+            } else toggleItem.onclick = clearToggleState();
             toggleContent.appendChild(toggleItem);
         } if (i != toggle.subtoggle.length - 1) toggleContent.appendChild(document.createElement("hr"));
     }
@@ -285,15 +360,162 @@ async function fileSystem_info() {
 	div.style.display = "none";
 }
 
+var totalTime = 0.0;
+var secondHeight = 0;
+var viewBottom = 0.1;
+var stageClientWidth = 0;
+var stageLengthSecond = 1.0;
+var stage = null;
+var lineLeft = [];
+var timeStamp = [];
+
+function drawStage() {
+    var b = document.getElementById("stage");
+    var h = secondHeight * (totalTime + stageLengthSecond);
+    var w = stageClientWidth - 20;
+    b.innerHTML = "";
+    var originalWidth = 274;
+
+    // 画边框
+    var left = 0;
+    for (var i = 0; i <= 6; i++) {
+        var line = document.createElement("div");
+        var width = (w / originalWidth * (i == 0 || i == 6 ? 2 : 1.2));
+        line.style.position = "absolute";
+        line.style.width = width + "px";
+        line.style.height = h + "px";
+        line.style.backgroundColor = "rgba(132, 132, 132, 0.6)";
+        line.style.left = left + "px";
+        left += width + w / originalWidth * 44;
+        b.appendChild(line);
+    }
+
+    // 画格子
+    left = w / originalWidth * 2;
+    lineLeft = [0];
+    for (var i = 0; i < 6; i++) {
+        var block = document.createElement("div");
+        var width = w / originalWidth * 44;
+        block.style.position = "absolute";
+        block.style.width = width + "px";
+        block.style.height = h + "px";
+        block.style.backgroundColor = "rgba(0, 0, 0, 0.6)";
+        block.style.left = left + "px";
+        lineLeft.push(left);
+        left += width + w / originalWidth * 1.2;
+        b.appendChild(block);
+    } lineLeft.push(1e18);
+
+    // 画很多很多的线
+    var top = (1.0 - viewBottom) * secondHeight * stageLengthSecond;
+    for (var i = 0; i < totalTime + stageLengthSecond; i += 0.125) {
+        var line = document.createElement("div");
+        line.style.position = "absolute";
+        line.style.width = (Math.abs(Math.round(i) - i) < 0.1 ? "calc(100% + 20px)" : "calc(100% - 20px)");
+        line.style.height = "1.2px";
+        line.style.backgroundColor = "rgba(255, 255, 255, 0.6)";
+        line.style.top = (top + (totalTime - i) * secondHeight + 9) + "px";
+        line.style.left = (Math.abs(Math.round(i) - i) < 0.1 ? "-20px" : "0px")
+        b.appendChild(line);
+    }
+
+    // 画线
+    if (document.getElementById("line") != undefined) document.getElementById("line").remove();
+    var line = document.createElement("div");
+    line.style.position = "fixed";
+    line.style.width = "calc(34% - 60px)";
+    line.style.height = "2px";
+    line.style.backgroundColor = "rgba(255, 0, 0, 0.6)";
+    line.style.marginLeft = "60px";
+    line.style.marginTop = (secondHeight * (1.0 - viewBottom) * stageLengthSecond + 9.0) + "px";
+    line.style.zIndex = 10000000;
+    line.id = "line";
+    document.getElementById("chart").appendChild(line);
+
+    // 获取可以添加按键的时间
+    timeStamp = [];
+    timeStamp.push(-1e18);
+    for (var i = 0; i <= totalTime; i += 0.125 / 4) timeStamp.push(i);
+    timeStamp.push(1e18);
+
+    jump(0);
+    document.getElementById("chart-controller").onplay = function(){play()};
+    document.getElementById("chart-controller").onpause = function(){pause()};
+    document.getElementById("chart-controller").ontimeupdate = function(){
+        jump(document.getElementById("chart-controller").currentTime, true, false);
+    };
+    document.getElementById("chart-controller").currentTime = 0;
+
+    document.getElementById("chart").onscroll = function(event) {
+        var t = totalTime - document.getElementById("chart").scrollTop / secondHeight;
+        jump(t, false);
+    };
+
+    document.getElementById("stage").onclick = function(event) {
+        updateCurrentTool(); clearClickState();
+        if (currentTool == 0 || currentTool == 5) return;
+        var x = event.clientX - getPosition("stage").x;
+        var y = event.clientY - getPosition("stage").y;
+        var t = totalTime - (y - (1.0 - viewBottom) * secondHeight * stageLengthSecond - 10.0) / secondHeight;
+        // 寻找相似时间
+        for (var i = 0; i < timeStamp.length - 1; i++) {
+            if (t >= timeStamp[i] && t <= timeStamp[i + 1]) {
+                t = (t - timeStamp[i] < timeStamp[i + 1] - t) ? timeStamp[i] : timeStamp[i + 1];
+                break;
+            }
+        }
+        for (var i = 1; i <= 6; i++) {
+            if (x >= lineLeft[i] && x <= lineLeft[i + 1]) {
+                addNote(t, i);
+                break;
+            }
+        }
+    }
+
+    document.getElementById("line").onclick = function(event) {
+        document.getElementById("stage").onclick(event);
+    }
+}
+
+function formatTimeSecond(s) {
+    var min = Math.floor(s / 60.0);
+    var sec = Math.floor(s - min * 60.0);
+    var lst = Math.floor((s - sec - min * 60.0) * 1000);
+    min = min < 10 ? "0" + min : min;
+    sec = sec < 10 ? "0" + sec : sec;
+    lst = lst < 10 ? "00" + lst : lst < 100 ? "0" + lst : lst;
+    return min + ":" + sec + "." + lst;
+}
+
+function drawTimeline(b) {
+    var b = document.getElementById("timeline");
+    b.innerHTML = "";
+    var height = secondHeight * totalTime;
+    var top = (1.0 - viewBottom) * secondHeight * stageLengthSecond;
+    for (var i = 0; i < totalTime + stageLengthSecond; i += 1.0) {
+        var e = document.createElement("div");
+        e.style.position = "absolute";
+        e.style.top = (top + height - secondHeight * i) + "px";
+        e.innerHTML = formatTimeSecond(i);
+        b.appendChild(e);
+    }
+}
+
 async function fileSystem_chart() {
 	await loadConfig();
     var div = document.createElement("page");
-    div.id = "fileSystem.chart"; div.appendChild(drawSkin("Hanipure Normal Note", 0.5));
-	div.appendChild(drawSkin("Hanipure Normal Flick", 1.0));
-	div.appendChild(drawSkin("Hanipure Normal Hold", 0.3));
-	div.appendChild(drawSkin("Hanipure Hold Line", 1.0));
-	div.appendChild(drawSkin("Hanipure Judge Note", 1.0));
+    div.id = "fileSystem.chart"; div.appendChild(htmlToNode(await getComponent("/components/editor.html")));
+    div.style.width = "100%";
     document.getElementById("container").appendChild(div);
+    document.getElementById("tools-tap-label").innerHTML += drawSkin2("Hanipure Normal Note", 60, 30).outerHTML;
+    document.getElementById("tools-flick-label").innerHTML += drawSkin2("Hanipure Normal Flick", 60, 30).outerHTML;
+    document.getElementById("tools-hold-label").innerHTML += drawSkin2("Hanipure Normal Hold", 60, 30).outerHTML + "&nbsp;+&nbsp" + drawSkin2("Hanipure Normal Hold", 60, 30).outerHTML;
+    document.getElementById("tools-holdflick-label").innerHTML += drawSkin2("Hanipure Normal Hold", 60, 30).outerHTML + "&nbsp;+&nbsp" + drawSkin2("Hanipure Normal Flick", 60, 30).outerHTML;
+    secondHeight = document.getElementById("chart").clientHeight / stageLengthSecond;
+    stageClientWidth = document.getElementById("stage").clientWidth;
+    stage = document.getElementById("stage");
+    await drawStage();
+    drawTimeline();
 	div.style.opacity = 0;
 	div.style.display = "none";
 }
@@ -325,7 +547,7 @@ async function fileSystem_thumbnail() {
     document.getElementById("container").appendChild(div);
     loadJS("/components/cover.js");
 	div.style.opacity = 0;
-	dis.style.display = "none";
+	div.style.display = "none";
 }
 
 // FileSystem Module
@@ -406,7 +628,6 @@ addLoadEvent(async function(){
 
 addLoadEvent(function(){
     document.addEventListener("click", function(e){
-        console.log(e);
         if (e.target.id != "toggleRoot" && e.target.localName != "toggle" &&
             e.target.localName != "togglecontent" && e.target.localName != "toggleitem" &&
             e.target.localName != "toggletext" && e.target.localName != "toggleshortcut") {
@@ -421,8 +642,6 @@ function addShortcut(ctrl, alt, shift, key, callback) {
         var ctrlKey = e.ctrlKey || e.metaKey;
         var altKey = e.altKey;
         var shiftKey = e.shiftKey;
-        console.log(ctrlKey, altKey, shiftKey, keyCode);
-        console.log(ctrl, alt, shift, key);
         if (ctrlKey == ctrl && altKey == alt && shiftKey == shift && keyCode == key) {
             callback();
             e.preventDefault();
