@@ -313,6 +313,12 @@ async function getComponent(path) {
     return text;
 }
 
+async function getBinary(path) {
+    var response = await fetch(path);
+    var blob = await response.arrayBuffer();
+    return blob;
+}
+
 function htmlToNode(html) {
     var template = document.createElement('template');
     template.innerHTML = html;
@@ -452,8 +458,7 @@ function drawStage() {
     };
 
     document.getElementById("stage").onclick = function(event) {
-        updateCurrentTool(); clearClickState();
-        if (currentTool == 0 || currentTool == 5) return;
+        updateCurrentTool();
         var x = event.clientX - getPosition("stage").x;
         var y = event.clientY - getPosition("stage").y;
         var t = totalTime - (y - (1.0 - viewBottom) * secondHeight * stageLengthSecond - 10.0) / secondHeight;
@@ -464,12 +469,27 @@ function drawStage() {
                 break;
             }
         }
+        // 延长 Hold
+        if (clickId != 0) {
+            for (var i = 1; i <= 6; i++) {
+                if (x >= lineLeft[i] && x <= lineLeft[i + 1]) {
+                    addHoldLine(clickId, t, i);
+                    break;
+                }
+            } 
+            event.stopPropagation();
+            return;
+        }
+        if (currentTool == 0 || currentTool == 5) return;
+        // 加 Note
         for (var i = 1; i <= 6; i++) {
             if (x >= lineLeft[i] && x <= lineLeft[i + 1]) {
-                addNote(t, i);
+                addNote(t, i); clearBorder();
+                if (currentTool == 3 || currentTool == 4) drawBorder(t, i);
                 break;
             }
         }
+        event.stopPropagation();
     }
 
     document.getElementById("line").onclick = function(event) {
@@ -501,6 +521,22 @@ function drawTimeline(b) {
     }
 }
 
+async function draw() {
+    secondHeight = document.getElementById("chart").clientHeight / stageLengthSecond;
+    stageClientWidth = document.getElementById("stage").clientWidth;
+    stage = document.getElementById("stage");
+    await drawStage();
+    drawTimeline(); 
+	clickId = clickT = clickL = 0; var index = Object();
+    for (var i = 0; i < chart.length; i++) drawNote(chart[i][0], chart[i][1], chart[i][2]);
+    for (var i = 0; i < chart.length; i++) {
+        if (chart[i][0] < 10) continue;
+        var x = index[chart[i][3]];
+        if (x != undefined) drawHoldBody(chart[x][1], chart[x][2], chart[i][1], chart[i][2]);
+        index[chart[i][3]] = i;
+    }
+}
+
 async function fileSystem_chart() {
 	await loadConfig();
     var div = document.createElement("page");
@@ -511,11 +547,7 @@ async function fileSystem_chart() {
     document.getElementById("tools-flick-label").innerHTML += drawSkin2("Hanipure Normal Flick", 60, 30).outerHTML;
     document.getElementById("tools-hold-label").innerHTML += drawSkin2("Hanipure Normal Hold", 60, 30).outerHTML + "&nbsp;+&nbsp" + drawSkin2("Hanipure Normal Hold", 60, 30).outerHTML;
     document.getElementById("tools-holdflick-label").innerHTML += drawSkin2("Hanipure Normal Hold", 60, 30).outerHTML + "&nbsp;+&nbsp" + drawSkin2("Hanipure Normal Flick", 60, 30).outerHTML;
-    secondHeight = document.getElementById("chart").clientHeight / stageLengthSecond;
-    stageClientWidth = document.getElementById("stage").clientWidth;
-    stage = document.getElementById("stage");
-    await drawStage();
-    drawTimeline();
+    await draw();
 	div.style.opacity = 0;
 	div.style.display = "none";
 }
@@ -632,7 +664,7 @@ addLoadEvent(function(){
             e.target.localName != "togglecontent" && e.target.localName != "toggleitem" &&
             e.target.localName != "toggletext" && e.target.localName != "toggleshortcut") {
             clearToggleState();
-        }
+        } clearBorder();
     });
 });
 
@@ -648,3 +680,12 @@ function addShortcut(ctrl, alt, shift, key, callback) {
         }
     });
 }
+
+addLoadEvent(function(){
+    window.addEventListener("resize", function(){
+        draw();
+    });
+    window.addEventListener("onorientationchange", function(){
+        draw();
+    });
+});
