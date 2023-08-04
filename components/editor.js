@@ -2,9 +2,11 @@ var SkinData, EffectData;
 var chart = [];
 var currentTool = 0;
 var operatorStack = [];
+var restoreStack = []
 var holdId = 0, clickId = 0;
 var clickT = 0, clickL = 0;
 var effectUrl = Object();
+var effect = Object();
 
 var noteNumber = 0;
 var tapNumber = 0;
@@ -20,9 +22,10 @@ const SkinHeight = 4096;
 function clearMap() {
 	chart = [];
 	operatorStack = [];
+	restoreStack = [];
 	holdId = clickId = 0;
 	clickT = clickL = 0;
-	noteNumber = 0; tapNumber = 0; flickNumber = 0;
+	noteNumber = 0; tapNumber = 0; flickNumber = 0; holdLineNumber = 0;
 	holdNumber = 0; holdEndNumber = 0; holdFlickEndNumber = 0;
 }
 
@@ -42,6 +45,7 @@ async function loadConfig() {
 	for (var i = 0; i < EffectData["clips"].length; i++) {
 		effectUrl[EffectData["clips"][i]["name"]] = 
 			URL.createObjectURL(await getBlobFromZip(EffectData["clips"][i]["filename"]));
+		effectInitialize(EffectData["clips"][i]["name"]);
 	}
 }
 
@@ -91,7 +95,7 @@ function play() {
 	intervalId = setInterval(function(){
 		T = document.getElementById("chart-controller").currentTime;
 		// 音效播放
-		while (currentChart < chart.length && chart[currentChart][1] <= T) {
+		while (currentChart < chart.length && chart[currentChart][1] <= T + searchConfig["offset"] / 1000.0) {
 			if (chart[currentChart][0] == 2 || chart[currentChart][0] == 24) playEffect("Hanipure Flick");
 			else playEffect("Hanipure Perfect");
 			if (chart[currentChart][0] == 21) effectElement[chart[currentChart][3]] = playEffectLooped("Hanipure Hold");
@@ -221,6 +225,43 @@ function drawBorder(t, l) {
 	document.getElementById("stage").appendChild(border);
 }
 
+// 音频管理模块
+
+const effectPoolSize = 16;
+var effectAudio = Object();
+var finishTime = Object();
+
+function effectInitialize(id) {
+	var effectPoolElement = Array();
+	for (var i = 0; i < effectPoolSize; i++) {
+		var e = document.createElement("audio");
+		e.src = effectUrl[id];
+		e.load(); effectPoolElement.push(e);
+	} effectAudio[id] = effectPoolElement;
+}
+
+async function playEffect(id) {
+	if (effectUrl[id] == undefined) return;
+	for (var i = 0; i < effectPoolSize; i++) {
+		if (effectAudio[id][i].paused) {
+			effectAudio[id][i].play();
+			return;
+		}
+	}
+}
+
+function playEffectLooped(id) {
+	if (effectUrl[id] == undefined) return;
+	var e = new Audio(effectUrl[id]);
+	e.loop = true; e.play();
+	return e;
+}
+
+function stopEffectLooped(e) {
+	e.pause();
+	e.remove();
+}
+
 // 操作栈管理模块
 
 var tmpOpStack = Array();
@@ -259,6 +300,98 @@ function remove(id, t, l) {
 			}); document.getElementById("stage-note-" + id + "-" + t + "-" + l).remove();
 			updateStatistics();
 		}
+	}
+}
+
+function stackAdd(id, t, l, holdId) {
+	noteNumber++;
+	if (id < 10) chart.push([id, t, l]);
+	else chart.push([id, t, l, holdId]);
+	chart.sort(function(a, b) {
+		return a[1] - b[1];
+	}); switch(id) {
+		case 1: tapNumber++; drawNote(1, t, l); break;
+		case 2: flickNumber++; drawNote(2, t, l); break;
+		case 21: holdNumber++; drawNote(21, t, l); break;
+		case 22: holdLineNumber++; drawNote(22, t, l); break;
+		case 23: holdEndNumber++; drawNote(23, t, l); break;
+		case 24: holdFlickEndNumber++; drawNote(24, t, l); break;
+	} updateStatistics();
+	addOnclickListener(id, t, l, holdId);
+}
+
+function stackRemove(id, t, l) {
+	for (var i = 0; i < chart.length; i++) {
+		if (chart[i][0] == id && chart[i][1] == t && chart[i][2] == l) {
+			noteNumber--;
+			switch(id) {
+				case 1: tapNumber--; break;
+				case 2: flickNumber--; break;
+				case 21: holdNumber--; break;
+				case 22: holdLineNumber--; break;
+				case 23: holdEndNumber--; break;
+				case 24: holdFlickEndNumber--; break;
+			} chart.splice(i, 1);
+			chart.sort(function(a, b) {
+				return a[1] - b[1];
+			}); document.getElementById("stage-note-" + id + "-" + t + "-" + l).remove();
+			updateStatistics();
+		}
+	}
+}
+
+function stackAddHoldLine(id, t, l) {
+	if (hasNote(t, l)) return;
+	for (var i = 0; i < chart.length; i++) {
+		if (chart[i][0] < 10) continue;
+		if (chart[i][3] != id) continue;
+		if (chart[i][1] == t) {
+			clearBorder();
+			return;
+		}
+	}
+	if (previousHold(id, t) == -1 && nextHold(id, t) == -1) return;
+	// 新头
+	if (previousHold(id, t) == -1) {
+		var index = nextHold(id, t), T = chart[index][1], L = chart[index][2];
+		drawHoldBody(t, l, T, L);
+	}
+	// 新尾
+	if (nextHold(id, t) == -1) {
+		var index = previousHold(id, t), T = chart[index][1], L = chart[index][2];
+		drawHoldBody(T, L, t, l);
+	}
+	// 中间
+	if (nextHold(id, t) != -1 && previousHold(id, t) != -1) {
+		var pre = previousHold(id, t), preT = chart[pre][1], preL = chart[pre][2];
+		var nxt = nextHold(id, t), nxtT = chart[nxt][1], nxtL = chart[nxt][2];
+		document.getElementById("stage-holdbody-" + preT + "-" + preL + "-" + nxtT + "-" + nxtL).remove();
+		drawHoldBody(preT, preL, t, l);
+		drawHoldBody(t, l, nxtT, nxtL);
+	} clearBorder();
+	drawBorder(t, l);
+}
+
+function stackEraseHoldNote(id, t, l) {
+	// 就一个
+	if (previousHold(id, t) == -1 && nextHold(id, t) == -1) return;
+	// 头部
+	if (previousHold(id, t) == -1) {
+		var index = nextHold(id, t), T = chart[index][1], L = chart[index][2];
+		document.getElementById("stage-holdbody-" + t + "-" + l + "-" + T + "-" + L).remove();
+	}
+	// 尾部
+	if (nextHold(id, t) == -1) {
+		var index = previousHold(id, t), T = chart[index][1], L = chart[index][2];
+		document.getElementById("stage-holdbody-" + T + "-" + L + "-" + t + "-" + l).remove();
+	}
+	// 中间
+	if (nextHold(id, t) != -1 && previousHold(id, t) != -1) {
+		var pre = previousHold(id, t), preT = chart[pre][1], preL = chart[pre][2];
+		var nxt = nextHold(id, t), nxtT = chart[nxt][1], nxtL = chart[nxt][2];
+		document.getElementById("stage-holdbody-" + preT + "-" + preL + "-" + t + "-" + l).remove();
+		document.getElementById("stage-holdbody-" + t + "-" + l + "-" + nxtT + "-" + nxtL).remove();
+		drawHoldBody(preT, preL, nxtT, nxtL);
 	}
 }
 
@@ -354,7 +487,6 @@ function eraseNote(t, l) {
 }
 
 function eraseHoldNote(id, t, l) {
-	console.log(id, t, l);
 	// 就一个
 	if (previousHold(id, t) == -1 && nextHold(id, t) == -1) {
 		eraseNote(t, l);
@@ -395,28 +527,4 @@ async function getBlobFromZip(path) {
 	await zip.loadAsync(await getBinary("/assets/EffectAudio"));
 	var data = zip.file(path).async("blob");
 	return data;
-}
-
-async function playEffect(id) {
-	if (effectUrl[id] == undefined) return;
-	var e = document.createElement("audio");
-	e.src = effectUrl[id]; 
-	console.log(e.src);
-	e.autoplay = true; e.load();
-	e.onended = function() {
-		this.remove();
-	};
-}
-
-function playEffectLooped(id) {
-	if (effectUrl[id] == undefined) return;
-	var e = document.createElement("audio");
-	e.src = effectUrl[id]; 
-	e.autoplay = true; e.loop = true; e.load();
-	return e;
-}
-
-function stopEffectLooped(e) {
-	e.pause();
-	e.remove();
 }

@@ -94,11 +94,13 @@
     var def = ""; searchConfig["title"] = def;
     document.getElementById("search-reset-title").onclick =
     document.getElementById("search-clear-title").onclick = function(){
+        var def = "";
         searchConfig["title"] = def;
         document.getElementById("search-title").value = def;
         document.getElementById("search-reset-title").className = disableResetClass;
     };
     document.getElementById("search-title").oninput = function(){
+        var def = "";
         searchConfig["title"] = this.value;
         if (this.value == def) document.getElementById("search-reset-title").className = disableResetClass;
         else document.getElementById("search-reset-title").className = enableResetClass;
@@ -108,11 +110,13 @@
     var def = ""; searchConfig["artists"] = def;
     document.getElementById("search-reset-artists").onclick =
     document.getElementById("search-clear-artists").onclick = function(){
+        var def = "";
         searchConfig["artists"] = def;
         document.getElementById("search-artists").value = def;
         document.getElementById("search-reset-artists").className = disableResetClass;
     };
     document.getElementById("search-artists").oninput = function(){
+        var def = "";
         searchConfig["artists"] = this.value;
         if (this.value == def) document.getElementById("search-reset-artists").className = disableResetClass;
         else document.getElementById("search-reset-artists").className = enableResetClass;
@@ -122,11 +126,13 @@
     var def = ""; searchConfig["author"] = def;
     document.getElementById("search-reset-author").onclick =
     document.getElementById("search-clear-author").onclick = function(){
+        var def = "";
         searchConfig["author"] = def;
         document.getElementById("search-author").value = def;
         document.getElementById("search-reset-author").className = disableResetClass;
     };
     document.getElementById("search-author").oninput = function(){
+        var def = "";
         searchConfig["author"] = this.value;
         if (this.value == def) document.getElementById("search-reset-author").className = disableResetClass;
         else document.getElementById("search-reset-author").className = enableResetClass;
@@ -136,11 +142,13 @@
     var def = ""; searchConfig["description"] = def;
     document.getElementById("search-reset-description").onclick =
     document.getElementById("search-clear-description").onclick = function(){
+        var def = "";
         searchConfig["description"] = def;
         document.getElementById("search-description").value = def;
         document.getElementById("search-reset-description").className = disableResetClass;
     };
     document.getElementById("search-description").oninput = function(){
+        var def = "";
         searchConfig["description"] = this.value;
         if (this.value == def) document.getElementById("search-reset-description").className = disableResetClass;
         else document.getElementById("search-reset-description").className = enableResetClass;

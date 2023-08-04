@@ -30,32 +30,158 @@ function getPosition(id) {
     return document.getElementById(id).getBoundingClientRect();
 }
 
+function IsPC() {
+    var flag = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    return !flag;
+}
+
 // Toggle Features
 
+var fileSaved = false;
+
 function createChart() {
-    alert("createChart");
+    if (!fileSaved) {
+        var res = confirm("是否保存当前谱面？");
+        if (res) saveChart();
+    } fileSaved = false;
+    document.getElementsByTagName("toggletitle")[0].innerHTML = "未命名.srp";
+    // 清除所有预览内容
+    document.getElementById("chart-controller").src = "";
+    document.getElementById("search-preview-bgm").src = "";
+    document.getElementById("search-preview-preview").src = "";
+    document.getElementById("search-preview-cover").src = "";
+    // 恢复所有设置内容
+    document.getElementById("search-reset-rating").click();
+    document.getElementById("search-reset-title").click();
+    document.getElementById("search-reset-artists").click();
+    document.getElementById("search-reset-author").click();
+    document.getElementById("search-reset-description").click();
+    document.getElementById("search-reset-bgm").click();
+    document.getElementById("search-reset-preview").click();
+    document.getElementById("search-reset-cover").click();
+    // 清除谱面 & 重绘舞台
+    clearMap(); draw();
+    updateStatistics();
+    // 清除工具选择状态
+    document.getElementById("tools-0").click();
+    // 清除页面
+    clearPageState();
 }
 
-function openChart() {
-    alert("openChart");
+if (window.showSaveFilePicker != undefined) {
+    // 方案一
+    var saveChart = function() {
+        alert("该设备使用的是方案一的 saveChart");
+    };
+
+    var openChart = async function() {
+        var res = await window.showOpenFilePicker({
+            types: [
+                {
+                    description: "srp 文件",
+                    accept: { "application/octet-stream": [".srp"] },
+                }
+            ]
+        });
+        var file = await res[0].getFile();
+        var blob = await file.arrayBuffer();
+        var context = new Uint8Array(blob);
+        var srpFile = new srp(context);
+    };
+} else {
+    // 方案二
+    var saveChart = function() {
+        alert("该设备使用的是方案二的 saveChart");
+    };
+    
+    var openChart = function() {
+        alert("该设备使用的是方案二的 openChart");
+    }
 }
 
-function saveChart() {
-    alert("saveChart");
+function clearChart() {
+    for (var i = 0; i < chart.length; i++) {
+        if (chart[i][0] < 10) eraseNote(chart[i][1], chart[i][2]);
+        else eraseHoldNote(chart[i][3], chart[i][1], chart[i][2]); 
+    }
+}
+
+function importChart() {
+    var input = document.createElement("input");
+    input.type = "file"; input.accept = ".json";
+    input.onchange = async function() {
+        var res = await readTextFile(input.files[0]);
+        noteNumber = 0; holdEndNumber = 0; holdLineNumber = 0;
+        tapNumber = 0; flickNumber = 0; holdNumber = 0; holdFlickNumber = 0;
+        var tmp = JSON.parse(res);
+        for (var i = 0; i < tmp.length; i++) {
+            if (tmp[i][0] == 11) tmp[i][0] = 21, tmp[i][3] += 10000;
+            if (tmp[i][0] == 12) tmp[i][0] = 23, tmp[i][3] += 10000;
+            if (tmp[i][0] == 13) tmp[i][0] = 24, tmp[i][3] += 10000;
+        }
+        updateChart(tmp);
+    }; input.click();
+}
+
+async function exportChart() {
+    var json = JSON.stringify(chart);
+    if (window.showSaveFilePicker == undefined) {
+        var blob = new Blob([json], {type: "application/octet-stream"});
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url; a.download = "chart.json";
+        a.click(); return;
+    }
+    var fileHandle = await window.showSaveFilePicker({
+        suggestedName: "chart.json",
+        types: [
+            {
+                description: "JSON 文件",
+                accept: { "application/json": [".json"] },
+            },
+        ],
+    });
+    const writable = await fileHandle.createWritable();
+    await writable.write(json);
+    await writable.close();
 }
 
 function editorUndo() {
-    alert("editorUndo");
+    if (operatorStack.length == 0) return;
+    var now = operatorStack[operatorStack.length - 1];
+    operatorStack.pop(); clearBorder();
+    for (var i = now.length - 1; i >= 0; i--) {
+        if (now[i]["operator"] == "addNote") {
+            if (now[i]["data"][0] >= 10) stackEraseHoldNote(now[i]["data"][3], now[i]["data"][1], now[i]["data"][2]);
+            stackRemove(now[i]["data"][0], now[i]["data"][1], now[i]["data"][2]);
+        }
+        if (now[i]["operator"] == "removeNote") {
+            if (now[i]["data"][0] >= 10) stackAddHoldLine(now[i]["data"][3], now[i]["data"][1], now[i]["data"][2]);
+            stackAdd(now[i]["data"][0], now[i]["data"][1], now[i]["data"][2], now[i]["data"][3]);
+        }
+    } restoreStack.push(now);
 }
 
 function editorRedo() {
-    alert("editorRedo");
+    if (restoreStack.length == 0) return;
+    var now = restoreStack[restoreStack.length - 1];
+    restoreStack.pop(); clearBorder();
+    for (var i = 0; i < now.length; i++) {
+        if (now[i]["operator"] == "removeNote") {
+            if (now[i]["data"][0] >= 10) stackEraseHoldNote(now[i]["data"][3], now[i]["data"][1], now[i]["data"][2]);
+            stackRemove(now[i]["data"][0], now[i]["data"][1], now[i]["data"][2]);
+        }
+        if (now[i]["operator"] == "addNote") {
+            if (now[i]["data"][0] >= 10) stackAddHoldLine(now[i]["data"][3], now[i]["data"][1], now[i]["data"][2]);
+            stackAdd(now[i]["data"][0], now[i]["data"][1], now[i]["data"][2], now[i]["data"][3]);
+        }
+    } operatorStack.push(now);
 }
 
 function previewJump() {
     document.getElementById("chart-controller").pause();
     var res = prompt("Time: ");
-    jump(res);
+    if (res != null) jump(res);
 }
 
 function previewPlay() {
@@ -91,9 +217,7 @@ const toggleConfig = [
                         shift: false,
                         key: 79
                     }
-                }
-            ], [
-                {
+                }, {
                     text: "保存谱面",
                     shortcutText: "Ctrl + S",
                     callback: saveChart,
@@ -102,6 +226,28 @@ const toggleConfig = [
                         alt: false,
                         shift: false,
                         key: 83
+                    }
+                }
+            ], [
+                {
+                    text: "以 JSON 格式导入",
+                    shortcutText: "Ctrl + I",
+                    callback: importChart,
+                    shortcut: {
+                        ctrl: true,
+                        alt: false,
+                        shift: false,
+                        key: 73
+                    }
+                }, {
+                    text: "以 JSON 格式导出",
+                    shortcutText: "Ctrl + E",
+                    callback: exportChart,
+                    shortcut: {
+                        ctrl: true,
+                        alt: false,
+                        shift: false,
+                        key: 69
                     }
                 }
             ]
@@ -326,7 +472,7 @@ function htmlToNode(html) {
 }
 
 function loadJS(path) {
-    var oHead = document.getElementsByTagName('head')[0]; // 在head标签中创建创建script
+    var oHead = document.getElementsByTagName('head')[0];
     var oScript = document.createElement("script");
     oScript.type = "text/javascript";
     oScript.src = path;
@@ -337,6 +483,18 @@ async function readBinaryFile(FileObject) {
     var reader = new FileReader();
     var result; var finish = false;
     reader.readAsArrayBuffer(FileObject);
+    reader.onload = function(e) {
+        finish = true;
+        result = this.result;
+    }
+    while (!finish) await sleep(10);
+    return result;
+}
+
+async function readTextFile(FileObject) {
+    var reader = new FileReader();
+    var result; var finish = false;
+    reader.readAsText(FileObject);
     reader.onload = function(e) {
         finish = true;
         result = this.result;
@@ -414,29 +572,38 @@ function drawStage() {
 
     // 画很多很多的线
     var top = (1.0 - viewBottom) * secondHeight * stageLengthSecond;
-    for (var i = 0; i < totalTime + stageLengthSecond; i += 0.125) {
+    var unit = 0.125; switch(searchConfig["line"]) {
+        case "0": unit = 1; break;
+        case "1": unit = 0.5; break;
+        case "2": unit = 0.25; break;
+        case "3": unit = 0.125; break;
+        case "4": unit = 0.0625; break;
+        case "5": unit = 0.03125; break;
+    };
+    for (var i = 0; i < totalTime + stageLengthSecond; i += unit) {
         var line = document.createElement("div");
         line.style.position = "absolute";
-        line.style.width = (Math.abs(Math.round(i) - i) < 0.1 ? "calc(100% + 20px)" : "calc(100% - 20px)");
+        line.style.width = (Math.abs(Math.round(i) - i) < 0.0001 ? "calc(100% + 20px)" : "calc(100% - 20px)");
         line.style.height = "1.2px";
         line.style.backgroundColor = "rgba(255, 255, 255, 0.6)";
         line.style.top = (top + (totalTime - i) * secondHeight + 9) + "px";
-        line.style.left = (Math.abs(Math.round(i) - i) < 0.1 ? "-20px" : "0px")
+        line.style.left = (Math.abs(Math.round(i) - i) < 0.0001 ? "-20px" : "0px")
         b.appendChild(line);
     }
 
     // 画线
     if (document.getElementById("line") != undefined) document.getElementById("line").remove();
     var line = document.createElement("div");
-    line.style.position = "fixed";
-    line.style.width = "calc(34% - 60px)";
+    line.style.position = "absolute";
+    line.style.width = "calc(40% - 60px)";
     line.style.height = "2px";
+    line.style.left = "calc(45% + 85px)";
     line.style.backgroundColor = "rgba(255, 0, 0, 0.6)";
-    line.style.marginLeft = "60px";
-    line.style.marginTop = (secondHeight * (1.0 - viewBottom) * stageLengthSecond + 9.0) + "px";
+
+    line.style.top = (secondHeight * (1.0 - viewBottom) * stageLengthSecond + 9.0) + "px";
     line.style.zIndex = 10000000;
     line.id = "line";
-    document.getElementById("chart").appendChild(line);
+    document.getElementById("fileSystem.chart").appendChild(line);
 
     // 获取可以添加按键的时间
     timeStamp = [];
@@ -522,18 +689,43 @@ function drawTimeline(b) {
 }
 
 async function draw() {
+    var timeNow = document.getElementById("chart-controller").currentTime;
     secondHeight = document.getElementById("chart").clientHeight / stageLengthSecond;
     stageClientWidth = document.getElementById("stage").clientWidth;
     stage = document.getElementById("stage");
+    totalTime = document.getElementById("chart-controller").duration;
+    if (isNaN(totalTime)) totalTime = 0;
+    for (var i = 0; i < chart.length; i++) totalTime = Math.max(totalTime, chart[i][1]);
     await drawStage();
     drawTimeline(); 
 	clickId = clickT = clickL = 0; var index = Object();
+    for (var i = 0; i < chart.length; i++) if (chart[i][3] >= 10) holdId = Math.max(holdId, chart[i][3]);
     for (var i = 0; i < chart.length; i++) drawNote(chart[i][0], chart[i][1], chart[i][2]);
     for (var i = 0; i < chart.length; i++) {
         if (chart[i][0] < 10) continue;
         var x = index[chart[i][3]];
         if (x != undefined) drawHoldBody(chart[x][1], chart[x][2], chart[i][1], chart[i][2]);
         index[chart[i][3]] = i;
+    } jump(timeNow, true, true);
+}
+
+async function updateChart(origin) {
+    secondHeight = document.getElementById("chart").clientHeight / stageLengthSecond;
+    stageClientWidth = document.getElementById("stage").clientWidth;
+    stage = document.getElementById("stage"); // 在head标签中创建创建script
+    totalTime = document.getElementById("chart-controller").duration;
+    if (isNaN(totalTime)) totalTime = 0;
+    for (var i = 0; i < origin.length; i++) totalTime = Math.max(totalTime, origin[i][1]);
+    await drawStage();
+    drawTimeline(); 
+	clickId = clickT = clickL = 0; var index = Object();
+    for (var i = 0; i < origin.length; i++) if (origin[i][3] >= 10) holdId = Math.max(holdId, origin[i][3]);
+    for (var i = 0; i < origin.length; i++) add(origin[i][0], origin[i][1], origin[i][2], origin[i][3]);
+    for (var i = 0; i < origin.length; i++) {
+        if (origin[i][0] < 10) continue;
+        var x = index[origin[i][3]];
+        if (x != undefined) drawHoldBody(origin[x][1], origin[x][2], origin[i][1], origin[i][2]);
+        index[origin[i][3]] = i;
     }
 }
 
@@ -541,7 +733,7 @@ async function fileSystem_chart() {
 	await loadConfig();
     var div = document.createElement("page");
     div.id = "fileSystem.chart"; div.appendChild(htmlToNode(await getComponent("/components/editor.html")));
-    div.style.width = "100%";
+    div.style.width = "100%"; div.style.position = "relative";
     document.getElementById("container").appendChild(div);
     document.getElementById("tools-tap-label").innerHTML += drawSkin2("Hanipure Normal Note", 60, 30).outerHTML;
     document.getElementById("tools-flick-label").innerHTML += drawSkin2("Hanipure Normal Flick", 60, 30).outerHTML;
@@ -578,6 +770,18 @@ async function fileSystem_thumbnail() {
     div.style.width = "100%";
     document.getElementById("container").appendChild(div);
     loadJS("/components/cover.js");
+	div.style.opacity = 0;
+	div.style.display = "none";
+}
+
+async function fileSystem_settings() {
+    var div = document.createElement("page");
+    div.id = "fileSystem.settings"; div.appendChild(htmlToNode(await getComponent("/components/settings.html")));
+    div.style.width = "100%";
+    document.getElementById("container").appendChild(div);
+    loadJS("/components/settings.js");
+    await sleep(100);
+    document.getElementById("search-reset-offset").click();
 	div.style.opacity = 0;
 	div.style.display = "none";
 }
@@ -623,6 +827,11 @@ const fileSystemConfig = [
         text: "thumbnail.jpg",
         page: "fileSystem.thumbnail",
         initialize: fileSystem_thumbnail
+    }, {
+        icon: jsonIcon,
+        text: "settings.json",
+        page: "fileSystem.settings",
+        initialize: fileSystem_settings
     }
 ]
 
@@ -645,6 +854,7 @@ async function createFileSystemItem(item) {
         clearPageState();
         document.getElementById(item.page).style.opacity = 1;
         document.getElementById(item.page).style.display = "";
+        if (item.page == "fileSystem.chart") draw();
     }; 
     fileSystemItem.classList.add("flex");
     document.getElementById("fileRoot").appendChild(fileSystemItem);
@@ -687,5 +897,15 @@ addLoadEvent(function(){
     });
     window.addEventListener("onorientationchange", function(){
         draw();
+    });
+});
+
+addLoadEvent(function(){
+    window.addEventListener("beforeunload", function(e) {
+        if (!fileSaved) {
+            var confirmationMessage = "离开此网站？系统可能不会保存您所做的更改。";
+            (e || window.event).returnValue = confirmationMessage; // 兼容 Gecko + IE
+            return confirmationMessage; // 兼容 Gecko + Webkit, Safari, Chrome
+        }
     });
 });
