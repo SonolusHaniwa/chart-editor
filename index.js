@@ -38,11 +38,12 @@ function IsPC() {
 // Toggle Features
 
 var fileSaved = false;
+var res = null;
 
 function createChart() {
     if (!fileSaved) {
-        var res = confirm("是否保存当前谱面？");
-        if (res) saveChart();
+        var res2 = confirm("是否保存当前谱面？");
+        if (res2) saveChart();
     } fileSaved = false;
     document.getElementsByTagName("toggletitle")[0].innerHTML = "未命名.srp";
     // 清除所有预览内容
@@ -51,6 +52,7 @@ function createChart() {
     document.getElementById("search-preview-preview").src = "";
     document.getElementById("search-preview-cover").src = "";
     // 恢复所有设置内容
+    document.getElementById("search-reset-name").click();
     document.getElementById("search-reset-rating").click();
     document.getElementById("search-reset-title").click();
     document.getElementById("search-reset-artists").click();
@@ -66,16 +68,95 @@ function createChart() {
     document.getElementById("tools-0").click();
     // 清除页面
     clearPageState();
+    res = null;
+}
+
+function open(context) {
+    var srpFile = new srp(context);
+    var index = -1;
+    for (var i = 0; i < srpFile.jsons.length; i++) {
+        if (srpFile.jsons[i].type == "1") {
+            if (index != -1) {
+                alert("Multiple Chart File Detected.");
+                throw new Error("Multiple Chart File Detected.");
+            } else index = i;
+        }
+    }
+    if (index == -1) {
+        alert("No Chart File Detected.");
+        throw new Error("No Chart File Detected.");
+    }
+    var LevelInfo = JSON.parse(srpFile.jsons[index].content);
+    console.log(LevelInfo);
+    var LevelData = srpFile.files[LevelInfo["data"]["hash"]];
+    noteNumber = 0; holdEndNumber = 0; holdLineNumber = 0;
+    tapNumber = 0; flickNumber = 0; holdNumber = 0; holdFlickNumber = 0;
+    updateChart(LevelDataToChart(LevelData));
+    // 加载信息
+    fileSaved = true;
+    document.getElementById("search-name").value = LevelInfo["name"];
+    document.getElementById("search-name").oninput();
+    var min = 1, max = 30, def = LevelInfo["rating"];
+    var block = document.getElementById("search-block-rating");
+    var info = document.getElementById("search-info-rating");
+    var reset = document.getElementById("search-reset-rating");
+    searchConfig["rating"] = def;
+    block.style.setProperty("--tw-scale-x", (def - min) / (max - min));
+    info.innerHTML = searchConfig["rating"];
+    reset.className = (def == 25) ? disableResetClass : enableResetClass;
+    document.getElementById("search-title").value = LevelInfo["title"];
+    document.getElementById("search-title").oninput();
+    document.getElementById("search-artists").value = LevelInfo["artists"];
+    document.getElementById("search-artists").oninput();
+    document.getElementById("search-author").value = LevelInfo["author"];
+    document.getElementById("search-author").oninput();
+    document.getElementById("search-description").value = LevelInfo["description"].replace(/\n/g, "\\n");
+    document.getElementById("search-description").oninput();
+    var bgm = URL.createObjectURL(new Blob([srpFile.files[LevelInfo["bgm"]["hash"]]], {type: "audio/mpeg"}));
+    var preview = URL.createObjectURL(new Blob([srpFile.files[LevelInfo["preview"]["hash"]]], {type: "audio/mpeg"}));
+    var cover = URL.createObjectURL(new Blob([srpFile.files[LevelInfo["cover"]["hash"]]], {type: "image/jpeg"}));
+    document.getElementById("search-preview-bgm").src = bgm; document.getElementById("search-preview-bgm").load();
+    document.getElementById("search-bgm").value = bgm;
+    document.getElementById("chart-controller").src = bgm; document.getElementById("chart-controller").load();
+    document.getElementById("search-preview-preview").src = preview; document.getElementById("search-preview-preview").load();
+    document.getElementById("search-preview").value = preview;
+    document.getElementById("search-preview-cover").src = cover;
+    document.getElementById("search-cover").value = cover;
+}
+
+async function save() {
+    var srpFile = new srp();
+    var data = srpFile.addFile(ChartToLevelData(chart));
+    var bgm = srpFile.addFile(await getBlobFile2(document.getElementById("search-bgm").value));
+    var preview = srpFile.addFile(await getBlobFile2(document.getElementById("search-preview").value));
+    var cover = srpFile.addFile(await getBlobFile2(document.getElementById("search-cover").value));
+    var LevelInfo = {
+        "name": document.getElementById("search-name").value,
+        "rating": searchConfig["rating"],
+        "title": document.getElementById("search-title").value,
+        "artists": document.getElementById("search-artists").value,
+        "author": document.getElementById("search-author").value,
+        "description": document.getElementById("search-description").value.replace(/\\n/g, "\n"),
+        "version": 1,
+        "bgm": {"hash": bgm, "type": "LevelBgm", "url": "/data/" + bgm},
+        "cover": {"hash": cover, "type": "LevelCover", "url": "/data/" + cover},
+        "preview": {"hash": preview, "type": "LevelPreview", "url": "/data/" + preview},
+        "data": {"hash": data, "type": "LevelData", "url": "/data/" + data},
+        "engine": {"name": "hwpl"},
+        "useBackground": {"item": {}, "useDefault": true},
+        "useSkin": {"item": {}, "useDefault": true},
+        "useEffect": {"item": {}, "useDefault": true},
+        "useParticle": {"item": {}, "useDefault": true},
+    };
+    srpFile.addJson("1", JSON.stringify(LevelInfo));
+    return srpFile.toUint8Array();
 }
 
 if (window.showSaveFilePicker != undefined) {
     // 方案一
-    var saveChart = function() {
-        alert("该设备使用的是方案一的 saveChart");
-    };
-
-    var openChart = async function() {
-        var res = await window.showOpenFilePicker({
+    var saveChart = async function() {
+        if (res == null) res = await window.showSaveFilePicker({
+            suggestedName: "未命名.srp",
             types: [
                 {
                     description: "srp 文件",
@@ -83,19 +164,58 @@ if (window.showSaveFilePicker != undefined) {
                 }
             ]
         });
-        var file = await res[0].getFile();
+        var fileHandle = res;
+        var context = await save();
+        const writable = await fileHandle.createWritable();
+        await writable.write(context);
+        await writable.close();
+        alert("Saved Successfully.");
+        fileSaved = true;
+    };
+
+    var openChart = async function() {
+        if (!fileSaved) {
+            var res2 = confirm("是否保存当前谱面？");
+            if (res2) saveChart();
+        } res = await window.showOpenFilePicker({
+            types: [
+                {
+                    description: "srp 文件",
+                    accept: { "application/octet-stream": [".srp"] },
+                }
+            ],
+            multiple: false
+        }); res = res[0];
+        var file = await res.getFile();
         var blob = await file.arrayBuffer();
         var context = new Uint8Array(blob);
-        var srpFile = new srp(context);
+        document.getElementsByTagName("toggletitle")[0].innerHTML = file.name;
+        open(context);
+        fileSaved = true;
     };
 } else {
     // 方案二
-    var saveChart = function() {
-        alert("该设备使用的是方案二的 saveChart");
+    var saveChart = async function() {
+        var blob = new Blob([await save()], {type: "application/octet-stream"});
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url; a.download = document.getElementsByTagName("toggletitle")[0].innerHTML;
+        a.click(); return;
     };
     
     var openChart = function() {
-        alert("该设备使用的是方案二的 openChart");
+        if (!fileSaved) {
+            var res2 = confirm("是否保存当前谱面？");
+            if (res2) saveChart();
+        } var input = document.createElement("input");
+        input.type = "file"; input.accept = ".srp";
+        input.onchange = async function() {
+            var res = await readBinaryFile(input.files[0]);
+            var context = new Uint8Array(res);
+            document.getElementsByTagName("toggletitle")[0].innerHTML = input.files[0].name;
+            open(context);
+        }; input.click();
+        fileSaved = true;
     }
 }
 
@@ -115,9 +235,9 @@ function importChart() {
         tapNumber = 0; flickNumber = 0; holdNumber = 0; holdFlickNumber = 0;
         var tmp = JSON.parse(res);
         for (var i = 0; i < tmp.length; i++) {
-            if (tmp[i][0] == 11) tmp[i][0] = 21, tmp[i][3] += 10000;
-            if (tmp[i][0] == 12) tmp[i][0] = 23, tmp[i][3] += 10000;
-            if (tmp[i][0] == 13) tmp[i][0] = 24, tmp[i][3] += 10000;
+            if (tmp[i][0] == 11) tmp[i][0] = 21, tmp[i][3] += 100000;
+            if (tmp[i][0] == 12) tmp[i][0] = 23, tmp[i][3] += 100000;
+            if (tmp[i][0] == 13) tmp[i][0] = 24, tmp[i][3] += 100000;
         }
         updateChart(tmp);
     }; input.click();
@@ -514,6 +634,13 @@ async function getBlobFile(url) {
     return blob;
 }
 
+async function getBlobFile2(url) {
+    var response = await fetch(url);
+    var blob = await response.arrayBuffer();
+    var res = new Uint8Array(blob);
+    return res;
+}
+
 async function fileSystem_info() {
     var div = document.createElement("page");
     div.id = "fileSystem.info"; div.appendChild(htmlToNode(await getComponent("/components/info.html")));
@@ -710,6 +837,7 @@ async function draw() {
 }
 
 async function updateChart(origin) {
+    chart = [];
     secondHeight = document.getElementById("chart").clientHeight / stageLengthSecond;
     stageClientWidth = document.getElementById("stage").clientWidth;
     stage = document.getElementById("stage"); // 在head标签中创建创建script
@@ -864,6 +992,9 @@ async function createFileSystemItem(item) {
 addLoadEvent(async function(){
     for (var i = 0; i < fileSystemConfig.length; i++) await createFileSystemItem(fileSystemConfig[i]);
     clearPageState();
+    document.getElementById("loading").style.opacity = 0;
+    await sleep(500);
+    document.getElementById("loading").style.display = "none";
 });
 
 // Global Event Listener 

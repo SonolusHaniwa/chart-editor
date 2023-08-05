@@ -398,6 +398,7 @@ function stackEraseHoldNote(id, t, l) {
 function addStack() {
 	operatorStack.push(tmpOpStack);
 	tmpOpStack = Array();
+	restoreStack = [];
 }
 
 function addNote(t, l) {

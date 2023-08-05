@@ -1,4 +1,20 @@
 {
+    var def = ""; searchConfig["name"] = def;
+    document.getElementById("search-reset-name").onclick =
+    document.getElementById("search-clear-name").onclick = function(){
+        var def = ""; 
+        searchConfig["name"] = def;
+        document.getElementById("search-name").value = def;
+        document.getElementById("search-reset-name").className = disableResetClass;
+    };
+    document.getElementById("search-name").oninput = function(){
+        var def = ""; 
+        searchConfig["name"] = this.value;
+        if (this.value == def) document.getElementById("search-reset-name").className = disableResetClass;
+        else document.getElementById("search-reset-name").className = enableResetClass;
+    }
+}
+{
     var min = 1;
     var max = 30;
     var def = 25;
