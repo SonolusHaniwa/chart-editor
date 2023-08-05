@@ -45,7 +45,8 @@ async function loadConfig() {
 	for (var i = 0; i < EffectData["clips"].length; i++) {
 		effectUrl[EffectData["clips"][i]["name"]] = 
 			URL.createObjectURL(await getBlobFromZip(EffectData["clips"][i]["filename"]));
-		effectInitialize(EffectData["clips"][i]["name"]);
+		effectInitialize(EffectData["clips"][i]["name"],
+		EffectData["clips"][i]["name"] == "Hanipure Flick" ? 0.35 : 0.25);
 	}
 }
 
@@ -84,7 +85,7 @@ function drawSkin2(id, w, h) {
 	return e;
 }
 
-var intervalId = -1;
+var intervalId1 = -1, intervalId2 = -1;
 var effectElement = Object();
 function play() {
 	var currentChart = 0;
@@ -92,16 +93,30 @@ function play() {
 		if (chart[i][1] < document.getElementById("chart-controller").currentTime) currentChart = i + 1;
 	} document.getElementById("chart-controller").ontimeupdate = function(){};
 	document.getElementById("chart").onscroll = function(){};
-	intervalId = setInterval(function(){
+	intervalId1 = setInterval(function(){
 		T = document.getElementById("chart-controller").currentTime;
+		var played = {}; played[0] = played[1] = 0; 
+		var st = currentChart;
+		while (currentChart < chart.length && chart[currentChart][1] <= T + searchConfig["offset"] / 1000.0) currentChart++;
+		var en = currentChart;
 		// 音效播放
-		while (currentChart < chart.length && chart[currentChart][1] <= T + searchConfig["offset"] / 1000.0) {
-			if (chart[currentChart][0] == 2 || chart[currentChart][0] == 24) playEffect("Hanipure Flick");
-			else playEffect("Hanipure Perfect");
-			if (chart[currentChart][0] == 21) effectElement[chart[currentChart][3]] = playEffectLooped("Hanipure Hold");
-			if (chart[currentChart][0] == 23 || chart[currentChart][0] == 24) stopEffectLooped(effectElement[chart[currentChart][3]]);
-			currentChart++;
-		} jump(T, true, false);
+		for (var i = st; i < en; i++) {
+			if (chart[i][0] == 2 || chart[i][0] == 24) {
+				if (!played[0]) {
+					playEffect("Hanipure Flick"); played[0] = 1;
+				}
+			} else {
+				if (!played[1]) {
+					playEffect("Hanipure Perfect"); played[1] = 1;
+				}
+			}
+			if (chart[i][0] == 21) effectElement[chart[i][3]] = playEffectLooped("Hanipure Hold");
+			if (chart[i][0] == 23 || chart[i][0] == 24) stopEffectLooped(effectElement[chart[i][3]]);
+		}
+	}, 10);
+	intervalId2 = setInterval(function(){
+		T = document.getElementById("chart-controller").currentTime;
+		jump(T, true, false);
 	}, 10);
 }
 
@@ -116,7 +131,8 @@ async function jump(t, moveScroll = true, moveController = true) {
 }
 
 function pause() {
-	clearInterval(intervalId);
+	clearInterval(intervalId1);
+	clearInterval(intervalId2);
 	for(e in effectElement) stopEffectLooped(effectElement[e]);
 	document.getElementById("chart-controller").ontimeupdate = function(){
         jump(document.getElementById("chart-controller").currentTime, true, false);
@@ -231,11 +247,11 @@ const effectPoolSize = 16;
 var effectAudio = Object();
 var finishTime = Object();
 
-function effectInitialize(id) {
+function effectInitialize(id, volume) {
 	var effectPoolElement = Array();
 	for (var i = 0; i < effectPoolSize; i++) {
 		var e = document.createElement("audio");
-		e.src = effectUrl[id];
+		e.src = effectUrl[id]; e.volume = volume;
 		e.load(); effectPoolElement.push(e);
 	} effectAudio[id] = effectPoolElement;
 }
@@ -253,7 +269,7 @@ async function playEffect(id) {
 function playEffectLooped(id) {
 	if (effectUrl[id] == undefined) return;
 	var e = new Audio(effectUrl[id]);
-	e.loop = true; e.play();
+	e.loop = true; e.volume = 0.25; e.play();
 	return e;
 }
 

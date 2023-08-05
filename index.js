@@ -37,7 +37,7 @@ function IsPC() {
 
 // Toggle Features
 
-var fileSaved = false;
+var fileSaved = true;
 var res = null;
 
 function createChart() {
